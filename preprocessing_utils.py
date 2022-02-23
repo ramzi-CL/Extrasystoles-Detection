@@ -313,6 +313,21 @@ def filter_df_ecgs(data, fs, sig_col_name):
 
 
 def extract_template_signal(i, samples, signal, fs):
+    """
+    A function that extacts a specific 3 beats template from the whole signal 
+    based on the central R peak position
+    :param i: index of PQRST template's R peak
+    :type i: int
+    :param samples: R peak instants for the whole signal
+    :type samples: list
+    :param signal: whole ECG signal
+    :type signal: np.ndattay
+    :param fs: sampling frequency
+    :type fs: int
+    :return: PQRST template signal
+    :rtype: np.ndarray
+
+    """
     previous_sample = samples[i-1]
     next_sample = samples[i+1]
     n_next_sample = samples[i+2]
@@ -324,6 +339,17 @@ def extract_template_signal(i, samples, signal, fs):
 
 
 def compute_rr(i, samples):
+    """
+    A function that computes the ratio of the two RR intervals in a template of 
+    3 beats
+    :param i: index of the central beat relatively to the whole ECG beats
+    :type i: int
+    :param samples: all ECG R peaks instants
+    :type samples: list
+    :return: ratio of RR_1 and RR_2
+    :rtype: tuple
+
+    """
     previous_sample = samples[i-1]
     current_sample = samples[i]
     next_sample = samples[i+1]
@@ -335,6 +361,24 @@ def compute_rr(i, samples):
 
 
 def determine_annotation(i, ann, normal_beats, extrasystole_beats):
+    """
+    A function that determines the annotation of a three beats template based
+    on the annotations of single beats
+    :param i: index of the central R peak relatively to all R peaks 
+    in the signal
+    :type i: int
+    :param ann: all beats annotations list
+    :type ann: list
+    :param normal_beats: beat annotations that are considered as normal
+    :type normal_beats: list[string]
+    :param extrasystole_beats: beat annotations that are considered as 
+    extrasystoles
+    :type extrasystole_beats: list[string]
+    :return: annotation of the three beats template (1 for extrasystole or 0 
+                                                     for normal)
+    :rtype: int
+
+    """
     annotation = -1
     if (ann[i] in extrasystole_beats) or (ann[i+1] in extrasystole_beats):
         annotation = 1
@@ -345,6 +389,28 @@ def determine_annotation(i, ann, normal_beats, extrasystole_beats):
 
 
 def split_signal(row, normal_beats, extrasystole_beats, fs):
+    """
+    A function that splits an ECG signal into templates of three beats and 
+    appends the template to a dataframe with the columns:
+        * record_name: the name of the subject
+        * template: the signal
+        * rr_1: the ratio of RR 1 inetrval
+        * rr_2: the ratio of RR 2 inetrval
+        * label: the annotation of the three beats template (1 for extrasystole,
+                                                             0 for normal)
+    :param row: the original whole ECG
+    :type row: pd.Series
+    :param normal_beats: list of beat annotations that are considered as normal
+    :type normal_beats: list[string]
+    :param extrasystole_beats: list of beat annotations that are considered as
+    extrasystoles.
+    :type extrasystole_beats: list[string]
+    :param fs: sampling frequency
+    :type fs: int
+    :return: dataframe of all templates in the current subject
+    :rtype: pd.DataFrame
+
+    """
     dataframe = pd.DataFrame()
     record_name = row['record_name']
     signal = row['filtered_ecg']
@@ -369,6 +435,22 @@ def split_signal(row, normal_beats, extrasystole_beats, fs):
 
 
 def generate_templates(data, normal_beats, extrasystole_beats, fs):
+    """
+    A function that coverts a dataframe of one or several user's ECG signals
+    to a dataframe of three beats templates
+    :param data: all users signals
+    :type data: pd.DataFrame
+    :param normal_beats: beats annotations that are considered as normal
+    :type normal_beats: list[string]
+    :param extrasystole_beats: beats annotations that are considered as 
+    extrasystoles
+    :type extrasystole_beats: list[string]
+    :param fs: sampling frequency
+    :type fs: int
+    :return: dataframe pf three beats templates
+    :rtype: pd.DataFrame
+
+    """
     templates_df = pd.DataFrame()
     list_of_df = list(data.apply(
         lambda x: split_signal(x, normal_beats, extrasystole_beats, fs),
@@ -379,6 +461,14 @@ def generate_templates(data, normal_beats, extrasystole_beats, fs):
 
 
 def scale_template(row):
+    """
+    A function that performs MinMaxScaler on a specific template of three beats
+    :param row: template
+    :type row: pd.Series
+    :return: scaled signal
+    :rtype: np.ndarray
+
+    """
     scaler = MinMaxScaler(feature_range=(-1, 1))
     signal = row['template']
     scaled_signal = scaler.fit_transform(signal.reshape(-1, 1)).flatten()
